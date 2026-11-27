@@ -13,7 +13,7 @@ import (
 type jobHandler interface {
 	canHandleJob(c *jobConfig) bool
 
-	handleJob(c *jobConfig) error
+	handleJob(ctx context.Context, c *jobConfig) error
 }
 
 // createTaskHandler creates a vikunja task.
@@ -27,14 +27,14 @@ func (h *createTaskHandler) canHandleJob(c *jobConfig) bool {
 }
 
 // handleJob create a vikunja task according to the parameters in the jobConfig.
-func (h *createTaskHandler) handleJob(c *jobConfig) error {
+func (h *createTaskHandler) handleJob(ctx context.Context, c *jobConfig) error {
 	taskConfig, err := parseCreateTaskConfig(c)
 	if err != nil {
 		return err
 	}
 
 	// find ID for project
-	project, err := h.client.FindProjectByTitle(context.TODO(), taskConfig.project)
+	project, err := h.client.FindProjectByTitle(ctx, taskConfig.project)
 	if err != nil {
 		return fmt.Errorf("finding project: %w", err)
 	}
@@ -45,7 +45,7 @@ func (h *createTaskHandler) handleJob(c *jobConfig) error {
 		Description: taskConfig.description,
 		ProjectID:   projectID,
 	}
-	task, err := h.client.CreateTask(context.TODO(), t)
+	task, err := h.client.CreateTask(ctx, t)
 	if err != nil {
 		return fmt.Errorf("creating task: %w", err)
 	}
@@ -58,14 +58,14 @@ func (h *createTaskHandler) handleJob(c *jobConfig) error {
 		if labelTitle == "" {
 			continue
 		}
-		label, err := h.client.FindLabelByTitle(context.TODO(), labelTitle)
+		label, err := h.client.FindLabelByTitle(ctx, labelTitle)
 		if err != nil {
 			return fmt.Errorf("finding label: %w", err)
 		}
 		labelID := label.ID
 
 		err = h.client.AddTaskLabel(
-			context.TODO(),
+			ctx,
 			task.ID,
 			vikunja.AddTaskLabelRequest{LabelID: labelID},
 		)
@@ -111,16 +111,16 @@ func (h *applyTodayLabelHandler) canHandleJob(c *jobConfig) bool {
 }
 
 // handleJob applies and removes the Today label on tasks in the Inbox project.
-func (h *applyTodayLabelHandler) handleJob(c *jobConfig) error {
+func (h *applyTodayLabelHandler) handleJob(ctx context.Context, c *jobConfig) error {
 	// find ID for inbox project
-	project, err := h.client.FindProjectByTitle(context.TODO(), "Inbox")
+	project, err := h.client.FindProjectByTitle(ctx, "Inbox")
 	if err != nil {
 		return fmt.Errorf("finding project: %w", err)
 	}
 	inboxID := project.ID
 
 	// find ID for priority view in inbox project
-	view, err := h.client.FindProjectViewByTitle(context.TODO(), inboxID, "Priority")
+	view, err := h.client.FindProjectViewByTitle(ctx, inboxID, "Priority")
 	if err != nil {
 		return fmt.Errorf("finding project view: %w", err)
 	}
@@ -128,7 +128,7 @@ func (h *applyTodayLabelHandler) handleJob(c *jobConfig) error {
 
 	// find ID for now bucket in view
 	bucket, err := h.client.FindProjectViewBucketByTitle(
-		context.TODO(),
+		ctx,
 		inboxID,
 		priorityViewID,
 		"Now",
@@ -139,14 +139,14 @@ func (h *applyTodayLabelHandler) handleJob(c *jobConfig) error {
 	nowBucketID := bucket.ID
 
 	// find ID for today label
-	label, err := h.client.FindLabelByTitle(context.TODO(), "Today")
+	label, err := h.client.FindLabelByTitle(ctx, "Today")
 	if err != nil {
 		return fmt.Errorf("finding label: %w", err)
 	}
 	todayLabelID := label.ID
 
 	for task, err := range h.client.ListTasksInProjectViewStream(
-		context.TODO(),
+		ctx,
 		inboxID,
 		priorityViewID,
 		vikunja.TaskListQuery{Expand: []vikunja.TaskExpand{vikunja.TaskExpandBuckets}},
@@ -164,7 +164,7 @@ func (h *applyTodayLabelHandler) handleJob(c *jobConfig) error {
 		)
 		if taskInBucket && !hasLabel {
 			err = h.client.AddTaskLabel(
-				context.TODO(),
+				ctx,
 				task.ID,
 				vikunja.AddTaskLabelRequest{LabelID: todayLabelID},
 			)
@@ -173,7 +173,7 @@ func (h *applyTodayLabelHandler) handleJob(c *jobConfig) error {
 			}
 			slog.Info("added today label to task", slog.String("taskTitle", task.Title))
 		} else if !taskInBucket && hasLabel {
-			err = h.client.RemoveTaskLabel(context.TODO(), task.ID, todayLabelID)
+			err = h.client.RemoveTaskLabel(ctx, task.ID, todayLabelID)
 			if err != nil {
 				return fmt.Errorf("removing task label: %w", err)
 			}

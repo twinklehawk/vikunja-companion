@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -28,6 +29,8 @@ func main() {
 }
 
 func run() error {
+	ctx := context.Background()
+
 	slog.Info("starting")
 	config, err := loadConfig("", []envConfigEntry{})
 	if err != nil {
@@ -73,7 +76,7 @@ func run() error {
 			if i == -1 {
 				return fmt.Errorf("no handler found for job type '%s'", job.jobType)
 			}
-			err = jobHandlers[i].handleJob(&job)
+			err = jobHandlers[i].handleJob(ctx, &job)
 			if err != nil {
 				return fmt.Errorf("running job '%s': %w", job.name, err)
 			}
