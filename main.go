@@ -34,7 +34,10 @@ func run() error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	requestTimeout, err := parseDuration(config.vikunja.requestTimeout, time.Duration(30)*time.Second)
+	requestTimeout, err := parseDuration(
+		config.vikunja.requestTimeout,
+		time.Duration(30)*time.Second,
+	)
 	if err != nil {
 		return fmt.Errorf("invalid request timeout: %w", err)
 	}
@@ -63,7 +66,10 @@ func run() error {
 		nextRun := cron.Next(lastRun)
 		if !nextRun.IsZero() && !nextRun.After(now) {
 			slog.Info("running ready job", slog.String("job", job.name))
-			i := slices.IndexFunc(jobHandlers, func(h jobHandler) bool { return h.canHandleJob(&job) })
+			i := slices.IndexFunc(
+				jobHandlers,
+				func(h jobHandler) bool { return h.canHandleJob(&job) },
+			)
 			if i == -1 {
 				return fmt.Errorf("no handler found for job type '%s'", job.jobType)
 			}

@@ -54,11 +54,11 @@ func (h *createTaskHandler) handleJob(c *jobConfig) error {
 	}
 
 	// add labels
-	for _, label := range taskConfig.labels {
-		if label == "" {
+	for _, labelTitle := range taskConfig.labels {
+		if labelTitle == "" {
 			continue
 		}
-		label, err := h.client.FindLabelByTitle(context.TODO(), label)
+		label, err := h.client.FindLabelByTitle(context.TODO(), labelTitle)
 		if err != nil {
 			return fmt.Errorf("finding label: %w", err)
 		}
@@ -70,7 +70,7 @@ func (h *createTaskHandler) handleJob(c *jobConfig) error {
 			vikunja.AddTaskLabelRequest{LabelID: labelID},
 		)
 		if err != nil {
-			return fmt.Errorf("adding label '%s': %w", label, err)
+			return fmt.Errorf("adding label '%s': %w", labelTitle, err)
 		}
 	}
 
