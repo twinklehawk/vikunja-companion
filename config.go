@@ -117,6 +117,10 @@ func getDefaultEnvConfigEntries() []envConfigEntry {
 			env:     "VIKUNJA_REQUEST_TIMEOUT",
 			handler: func(s string, c *Config) { c.Vikunja.RequestTimeout = s },
 		},
+		{
+			env:     "RUN_INTERVAL",
+			handler: func(s string, c *Config) { c.RunInterval = s },
+		},
 	}
 }
 
