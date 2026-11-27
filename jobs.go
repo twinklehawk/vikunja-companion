@@ -10,9 +10,13 @@ import (
 	"github.com/twinklehawk/vikunja-client-go"
 )
 
+// jobHandler runs jobs of a single job type. For each job, run selects the first handler whose
+// canHandleJob returns true and calls its handleJob.
 type jobHandler interface {
+	// canHandleJob returns true if this handler can run the job.
 	canHandleJob(c *JobConfig) bool
 
+	// handleJob runs the job.
 	handleJob(ctx context.Context, c *JobConfig) error
 }
 
@@ -26,7 +30,10 @@ func (h *createTaskHandler) canHandleJob(c *JobConfig) bool {
 	return c.JobType == "CreateTask"
 }
 
-// handleJob create a vikunja task according to the parameters in the JobConfig.
+// handleJob creates a vikunja task according to the parameters in the JobConfig.
+//
+// The project and all labels are looked up before the task is created so that a missing project
+// or label does not leave behind a task without its labels.
 func (h *createTaskHandler) handleJob(ctx context.Context, c *JobConfig) error {
 	taskConfig, err := parseCreateTaskConfig(c)
 	if err != nil {
@@ -38,12 +45,21 @@ func (h *createTaskHandler) handleJob(ctx context.Context, c *JobConfig) error {
 	if err != nil {
 		return fmt.Errorf("finding project: %w", err)
 	}
-	projectID := project.ID
+
+	// find IDs for labels
+	labelIDs := make([]int64, 0, len(taskConfig.labels))
+	for _, labelTitle := range taskConfig.labels {
+		label, err := h.client.FindLabelByTitle(ctx, labelTitle)
+		if err != nil {
+			return fmt.Errorf("finding label '%s': %w", labelTitle, err)
+		}
+		labelIDs = append(labelIDs, label.ID)
+	}
 
 	t := vikunja.Task{
 		Title:       taskConfig.title,
 		Description: taskConfig.description,
-		ProjectID:   projectID,
+		ProjectID:   project.ID,
 	}
 	task, err := h.client.CreateTask(ctx, t)
 	if err != nil {
@@ -54,23 +70,14 @@ func (h *createTaskHandler) handleJob(ctx context.Context, c *JobConfig) error {
 	}
 
 	// add labels
-	for _, labelTitle := range taskConfig.labels {
-		if labelTitle == "" {
-			continue
-		}
-		label, err := h.client.FindLabelByTitle(ctx, labelTitle)
-		if err != nil {
-			return fmt.Errorf("finding label: %w", err)
-		}
-		labelID := label.ID
-
+	for i, labelID := range labelIDs {
 		err = h.client.AddTaskLabel(
 			ctx,
 			task.ID,
 			vikunja.AddTaskLabelRequest{LabelID: labelID},
 		)
 		if err != nil {
-			return fmt.Errorf("adding label '%s': %w", labelTitle, err)
+			return fmt.Errorf("adding label '%s': %w", taskConfig.labels[i], err)
 		}
 	}
 
@@ -84,20 +91,37 @@ type createTaskConfig struct {
 	title       string
 	project     string
 	description string
-	labels      []string
+	// labels are the titles of the labels to add to the task. Titles are trimmed, non-empty and
+	// unique.
+	labels []string
 }
 
+// parseCreateTaskConfig reads a [createTaskConfig] from the job parameters. The labels parameter
+// is a comma-separated list of label titles.
 func parseCreateTaskConfig(c *JobConfig) (createTaskConfig, error) {
 	config := createTaskConfig{
 		title:       c.Parameters["title"],
 		project:     c.Parameters["project"],
 		description: c.Parameters["description"],
-		labels:      strings.Split(c.Parameters["labels"], ","),
+		labels:      parseLabels(c.Parameters["labels"]),
 	}
 	if config.title == "" || config.project == "" {
 		return createTaskConfig{}, fmt.Errorf("task title and project cannot be empty")
 	}
 	return config, nil
+}
+
+// parseLabels splits a comma-separated list of label titles, trimming whitespace and dropping
+// empty and duplicate titles. The order of first occurrence is kept.
+func parseLabels(value string) []string {
+	var labels []string
+	for label := range strings.SplitSeq(value, ",") {
+		label = strings.TrimSpace(label)
+		if label != "" && !slices.Contains(labels, label) {
+			labels = append(labels, label)
+		}
+	}
+	return labels
 }
 
 // applyTodayLabelHandler manages the Today label on tasks in the Inbox project.
