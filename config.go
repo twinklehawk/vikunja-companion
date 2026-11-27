@@ -9,40 +9,40 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-// config is the configuration for this command.
-type config struct {
-	// vikunja is the configuration for accessing the vikunja API.
-	vikunja vikunjaClientConfig
-	// jobs is the configuration for the jobs to run.
-	jobs []jobConfig
-	// runInterval is how often this command runs as a duration formatted as described in
+// Config is the configuration for this command.
+type Config struct {
+	// Vikunja is the configuration for accessing the vikunja API.
+	Vikunja VikunjaClientConfig `yaml:"vikunja"`
+	// Jobs is the configuration for the jobs to run.
+	Jobs []JobConfig `yaml:"jobs"`
+	// RunInterval is how often this command runs as a duration formatted as described in
 	// [time.ParseDuration].
-	runInterval string
+	RunInterval string `yaml:"run-interval"`
 }
 
-// vikunjaClientConfig contains configuration for accessing the vikunja API.
-type vikunjaClientConfig struct {
-	baseURL  string
-	apiToken string
-	// requestTimeout is the maximum time allowed for a request to complete formatted as described
+// VikunjaClientConfig contains configuration for accessing the vikunja API.
+type VikunjaClientConfig struct {
+	BaseURL  string `yaml:"base-url"`
+	APIToken string `yaml:"api-token"`
+	// RequestTimeout is the maximum time allowed for a request to complete formatted as described
 	// in [time.ParseDuration].
-	requestTimeout string
+	RequestTimeout string `yaml:"request-timeout"`
 }
 
-// jobConfig contains configuration for running a single job.
-type jobConfig struct {
-	name    string
-	jobType string
-	// schedule is when the job should run as a standard crontab string.
+// JobConfig contains configuration for running a single job.
+type JobConfig struct {
+	Name    string `yaml:"name"`
+	JobType string `yaml:"job-type"`
+	// Schedule is when the job should run as a standard crontab string.
 	// The time zone can be specified using a TZ=<time zone> or CRON_TZ=<time zone> prefix. If no
 	// time zone is specified this way, the system time zone is used.
-	schedule   string
-	parameters map[string]string
+	Schedule   string            `yaml:"schedule"`
+	Parameters map[string]string `yaml:"parameters"`
 }
 
 // envValueHandler updates a value in the passed in [config] instance using the
 // passed in environment variable value.
-type envValueHandler func(value string, config *config)
+type envValueHandler func(value string, config *Config)
 
 // envConfigEntry contains an environment variable key and a handler to update the config with the
 // env value.
@@ -63,7 +63,7 @@ const (
 //
 // If configFile is empty, the [defaultConfigFile] is used. If envEntries is empty,
 // [getDefaultEnvConfigEntries] is used.
-func loadConfig(configFile string, envEntries []envConfigEntry) (*config, error) {
+func loadConfig(configFile string, envEntries []envConfigEntry) (*Config, error) {
 	if configFile == "" {
 		configFile = defaultConfigFile
 	}
@@ -79,13 +79,13 @@ func loadConfig(configFile string, envEntries []envConfigEntry) (*config, error)
 	return config, nil
 }
 
-func loadConfigFromFile(configFile string) (*config, error) {
+func loadConfigFromFile(configFile string) (*Config, error) {
 	slog.Debug("reading config file" + configFile)
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", configFile, err)
 	}
-	c := config{}
+	c := Config{}
 	err = yaml.Unmarshal(data, &c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", configFile, err)
@@ -93,7 +93,7 @@ func loadConfigFromFile(configFile string) (*config, error) {
 	return &c, nil
 }
 
-func overrideConfigFromEnv(config *config, envEntries []envConfigEntry) {
+func overrideConfigFromEnv(config *Config, envEntries []envConfigEntry) {
 	for _, entry := range envEntries {
 		val, isSet := os.LookupEnv(entry.env)
 		if isSet {
@@ -107,15 +107,15 @@ func getDefaultEnvConfigEntries() []envConfigEntry {
 	return []envConfigEntry{
 		{
 			env:     "VIKUNJA_API_TOKEN",
-			handler: func(s string, c *config) { c.vikunja.apiToken = s },
+			handler: func(s string, c *Config) { c.Vikunja.APIToken = s },
 		},
 		{
 			env:     "VIKUNJA_BASE_URL",
-			handler: func(s string, c *config) { c.vikunja.baseURL = s },
+			handler: func(s string, c *Config) { c.Vikunja.BaseURL = s },
 		},
 		{
 			env:     "VIKUNJA_REQUEST_TIMEOUT",
-			handler: func(s string, c *config) { c.vikunja.requestTimeout = s },
+			handler: func(s string, c *Config) { c.Vikunja.RequestTimeout = s },
 		},
 	}
 }

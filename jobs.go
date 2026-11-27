@@ -11,9 +11,9 @@ import (
 )
 
 type jobHandler interface {
-	canHandleJob(c *jobConfig) bool
+	canHandleJob(c *JobConfig) bool
 
-	handleJob(ctx context.Context, c *jobConfig) error
+	handleJob(ctx context.Context, c *JobConfig) error
 }
 
 // createTaskHandler creates a vikunja task.
@@ -21,13 +21,13 @@ type createTaskHandler struct {
 	client *vikunja.Client
 }
 
-// canHandleJob returns true if the [jobConfig.jobType] is CreateTask.
-func (h *createTaskHandler) canHandleJob(c *jobConfig) bool {
-	return c.jobType == "CreateTask"
+// canHandleJob returns true if the [JobConfig.JobType] is CreateTask.
+func (h *createTaskHandler) canHandleJob(c *JobConfig) bool {
+	return c.JobType == "CreateTask"
 }
 
-// handleJob create a vikunja task according to the parameters in the jobConfig.
-func (h *createTaskHandler) handleJob(ctx context.Context, c *jobConfig) error {
+// handleJob create a vikunja task according to the parameters in the JobConfig.
+func (h *createTaskHandler) handleJob(ctx context.Context, c *JobConfig) error {
 	taskConfig, err := parseCreateTaskConfig(c)
 	if err != nil {
 		return err
@@ -87,12 +87,12 @@ type createTaskConfig struct {
 	labels      []string
 }
 
-func parseCreateTaskConfig(c *jobConfig) (createTaskConfig, error) {
+func parseCreateTaskConfig(c *JobConfig) (createTaskConfig, error) {
 	config := createTaskConfig{
-		title:       c.parameters["title"],
-		project:     c.parameters["project"],
-		description: c.parameters["description"],
-		labels:      strings.Split(c.parameters["labels"], ","),
+		title:       c.Parameters["title"],
+		project:     c.Parameters["project"],
+		description: c.Parameters["description"],
+		labels:      strings.Split(c.Parameters["labels"], ","),
 	}
 	if config.title == "" || config.project == "" {
 		return createTaskConfig{}, fmt.Errorf("task title and project cannot be empty")
@@ -105,13 +105,13 @@ type applyTodayLabelHandler struct {
 	client *vikunja.Client
 }
 
-// canHandleJob returns true if the [jobConfig.jobType] is ApplyTodayLabel.
-func (h *applyTodayLabelHandler) canHandleJob(c *jobConfig) bool {
-	return c.jobType == "ApplyTodayLabel"
+// canHandleJob returns true if the [JobConfig.JobType] is ApplyTodayLabel.
+func (h *applyTodayLabelHandler) canHandleJob(c *JobConfig) bool {
+	return c.JobType == "ApplyTodayLabel"
 }
 
 // handleJob applies and removes the Today label on tasks in the Inbox project.
-func (h *applyTodayLabelHandler) handleJob(ctx context.Context, c *jobConfig) error {
+func (h *applyTodayLabelHandler) handleJob(ctx context.Context, c *JobConfig) error {
 	// find ID for inbox project
 	project, err := h.client.FindProjectByTitle(ctx, "Inbox")
 	if err != nil {

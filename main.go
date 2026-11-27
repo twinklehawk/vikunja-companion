@@ -38,15 +38,15 @@ func run() error {
 	}
 
 	requestTimeout, err := parseDuration(
-		config.vikunja.requestTimeout,
+		config.Vikunja.RequestTimeout,
 		time.Duration(30)*time.Second,
 	)
 	if err != nil {
 		return fmt.Errorf("invalid request timeout: %w", err)
 	}
 	client := vikunja.NewClient(
-		vikunja.WithBaseURL(config.vikunja.baseURL),
-		vikunja.WithAPIToken(config.vikunja.apiToken),
+		vikunja.WithBaseURL(config.Vikunja.BaseURL),
+		vikunja.WithAPIToken(config.Vikunja.APIToken),
 		vikunja.WithHTTPClient(&http.Client{Timeout: requestTimeout}),
 	)
 	jobHandlers := []jobHandler{
@@ -61,26 +61,26 @@ func run() error {
 	}
 
 	slog.Info("running jobs")
-	for _, job := range config.jobs {
-		cron, err := cron.ParseStandard(job.schedule)
+	for _, job := range config.Jobs {
+		cron, err := cron.ParseStandard(job.Schedule)
 		if err != nil {
-			return fmt.Errorf("parsing job '%s' schedule: %w", job.name, err)
+			return fmt.Errorf("parsing job '%s' schedule: %w", job.Name, err)
 		}
 		nextRun := cron.Next(lastRun)
 		if !nextRun.IsZero() && !nextRun.After(now) {
-			slog.Info("running ready job", slog.String("job", job.name))
+			slog.Info("running ready job", slog.String("job", job.Name))
 			i := slices.IndexFunc(
 				jobHandlers,
 				func(h jobHandler) bool { return h.canHandleJob(&job) },
 			)
 			if i == -1 {
-				return fmt.Errorf("no handler found for job type '%s'", job.jobType)
+				return fmt.Errorf("no handler found for job type '%s'", job.JobType)
 			}
 			err = jobHandlers[i].handleJob(ctx, &job)
 			if err != nil {
-				return fmt.Errorf("running job '%s': %w", job.name, err)
+				return fmt.Errorf("running job '%s': %w", job.Name, err)
 			}
-			slog.Info("job completed", slog.String("job", job.name))
+			slog.Info("job completed", slog.String("job", job.Name))
 		}
 	}
 
@@ -89,8 +89,8 @@ func run() error {
 	return nil
 }
 
-func getLastRunTime(config *config, now time.Time) (time.Time, error) {
-	runInterval, err := parseDuration(config.runInterval, 0)
+func getLastRunTime(config *Config, now time.Time) (time.Time, error) {
+	runInterval, err := parseDuration(config.RunInterval, 0)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("invalid run internal: %w", err)
 	}
