@@ -237,9 +237,13 @@ func createTaskRoutes() map[string]fakeResponse {
 			status: http.StatusCreated,
 			body:   vikunja.Task{ID: 42, Title: "Water plants", ProjectID: 7},
 		},
-		"GET /api/v2/labels?page=1&q=Chores": {body: onePage(vikunja.Label{ID: 11, Title: "Chores"})},
-		"GET /api/v2/labels?page=1&q=Today":  {body: onePage(vikunja.Label{ID: 12, Title: "Today"})},
-		"POST /api/v2/tasks/42/labels":       {status: http.StatusCreated},
+		"GET /api/v2/labels?page=1&q=Chores": {
+			body: onePage(vikunja.Label{ID: 11, Title: "Chores"}),
+		},
+		"GET /api/v2/labels?page=1&q=Today": {
+			body: onePage(vikunja.Label{ID: 12, Title: "Today"}),
+		},
+		"POST /api/v2/tasks/42/labels": {status: http.StatusCreated},
 	}
 }
 
@@ -409,7 +413,9 @@ func applyTodayLabelRoutes(tasks ...vikunja.Task) map[string]fakeResponse {
 			vikunja.Bucket{ID: laterBucket, Title: "Later"},
 			vikunja.Bucket{ID: nowBucket, Title: "Now"},
 		)},
-		"GET /api/v2/labels":               {body: onePage(vikunja.Label{ID: todayLabel, Title: "Today"})},
+		"GET /api/v2/labels": {
+			body: onePage(vikunja.Label{ID: todayLabel, Title: "Today"}),
+		},
 		"GET " + tasksPagePath:             {body: onePage(tasks...)},
 		"POST /api/v2/tasks/1/labels":      {status: http.StatusCreated},
 		"POST /api/v2/tasks/2/labels":      {status: http.StatusCreated},
@@ -437,11 +443,19 @@ func TestApplyTodayLabelHandleJob(t *testing.T) {
 		vikunja.Task{ID: 2, Title: "in Now, has label", Buckets: inNow, Labels: today},
 		vikunja.Task{ID: 3, Title: "in Later, has label", Buckets: inLater, Labels: today},
 		vikunja.Task{ID: 4, Title: "in Later, no label", Buckets: inLater},
-		vikunja.Task{ID: 5, Title: "Now in other view, has label", Buckets: inOtherView, Labels: today},
+		vikunja.Task{
+			ID:      5,
+			Title:   "Now in other view, has label",
+			Buckets: inOtherView,
+			Labels:  today,
+		},
 	))
 	h := &applyTodayLabelHandler{client: client}
 
-	if err := h.handleJob(context.Background(), &JobConfig{JobType: "ApplyTodayLabel"}); err != nil {
+	if err := h.handleJob(
+		context.Background(),
+		&JobConfig{JobType: "ApplyTodayLabel"},
+	); err != nil {
 		t.Fatalf("handleJob() unexpected error: %v", err)
 	}
 
@@ -519,7 +533,9 @@ func TestApplyTodayLabelHandleJobErrors(t *testing.T) {
 		{
 			name: "priority view not found",
 			override: map[string]fakeResponse{
-				"GET /api/v2/projects/5/views": {body: onePage(vikunja.ProjectView{ID: 19, Title: "List"})},
+				"GET /api/v2/projects/5/views": {
+					body: onePage(vikunja.ProjectView{ID: 19, Title: "List"}),
+				},
 			},
 			wantInErr: "finding project view",
 		},
